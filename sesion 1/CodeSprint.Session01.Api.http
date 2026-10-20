@@ -1,0 +1,6 @@
+@CodeSprint.Session01.Api_HostAddress = http://localhost:5268
+
+GET {{CodeSprint.Session01.Api_HostAddress}}/api/hello
+Accept: application/json
+
+###
