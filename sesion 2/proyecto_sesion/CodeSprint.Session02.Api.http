@@ -1,0 +1,24 @@
+@host = http://localhost:5270
+
+GET {{host}}/health
+Accept: application/json
+
+###
+
+GET {{host}}/api/products
+Accept: application/json
+
+###
+
+GET {{host}}/api/products/1
+Accept: application/json
+
+###
+
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "quantity": 2
+}
