@@ -23,25 +23,7 @@ public sealed class OrdersController : ControllerBase
     [ProducesResponseType<ErrorResponse>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<OrderResponse>> Create(OrderRequest request)
     {
-        if (request.ProductId <= 0 || request.Quantity <= 0)
-        {
-            return BadRequest(new ErrorResponse
-            {
-                Message = "El identificador y la cantidad deben ser mayores que cero."
-            });
-        }
 
-        Product? product = _productService.GetById(request.ProductId);
-
-        if (product is null)
-        {
-            return NotFound(new ErrorResponse { Message = "Producto no encontrado." });
-        }
-
-        if (request.Quantity > product.Stock)
-        {
-            return BadRequest(new ErrorResponse { Message = "No hay suficiente stock." });
-        }
 
         OrderResponse order = await _orderService.ProcessAsync(product, request.Quantity);
 
