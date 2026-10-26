@@ -1,40 +1,46 @@
+using Bomberman.Api.Data;
 using Bomberman.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Bomberman.Api.Services;
 
-public sealed class PlayerService
+public sealed class PlayerService(BombermanDbContext dbContext)
 {
-private readonly List<Player> _players =
-    [
-        new Player { Id = 1, Nombre = "Jugador 1", puntaje = 0.0, vida = 3 },
-        new Player { Id = 2, Nombre = "Jugador 2", puntaje = 0.0, vida = 3 }
-    ];
-
-    public List<Player> GetAll()
+    public Task<List<Player>> GetAllAsync(CancellationToken cancellationToken)
     {
-        return _players;
+        return dbContext.Players
+            .AsNoTracking()
+            .OrderBy(player => player.Id)
+            .ToListAsync(cancellationToken);
     }
 
-    public Player? GetById(int id)
+    public Task<Player?> GetByIdAsync(int id, CancellationToken cancellationToken)
     {
-        return _players.FirstOrDefault(player => player.Id == id);
+        return dbContext.Players
+            .AsNoTracking()
+            .FirstOrDefaultAsync(player => player.Id == id, cancellationToken);
     }
 
-    public Player Create(string nombre)
+    public async Task<Player> CreateAsync(string nombre, CancellationToken cancellationToken)
     {
         var player = new Player
         {
-            Id = _players.Count == 0 ? 1 : _players.Max(existingPlayer => existingPlayer.Id) + 1,
             Nombre = nombre
         };
 
-        _players.Add(player);
+        dbContext.Players.Add(player);
+        await dbContext.SaveChangesAsync(cancellationToken);
         return player;
     }
 
-    public Player? Replace(int id, string nombre, int vida, double puntaje)
+    public async Task<Player?> ReplaceAsync(
+        int id,
+        string nombre,
+        int vida,
+        double puntaje,
+        CancellationToken cancellationToken)
     {
-        var player = GetById(id);
+        var player = await dbContext.Players.FindAsync([id], cancellationToken);
         if (player is null)
         {
             return null;
@@ -43,45 +49,26 @@ private readonly List<Player> _players =
         player.Nombre = nombre;
         player.vida = vida;
         player.puntaje = puntaje;
+        await dbContext.SaveChangesAsync(cancellationToken);
         return player;
     }
 
-    public Player? Update(int id, string? nombre, int? vida, double? puntaje)
+    public async Task<Player?> UpdateAsync(
+        int id,
+        string? nombre,
+        int? vida,
+        double? puntaje,
+        CancellationToken cancellationToken)
     {
-        var player = GetById(id);
-        if (player is null)
-        {
-            return null;
-        }
-
-        if (nombre is not null)
-        {
-            player.Nombre = nombre;
-        }
-
-        if (vida.HasValue)
-        {
-            player.vida = vida.Value;
-        }
-
-        if (puntaje.HasValue)
-        {
-            player.puntaje = puntaje.Value;
-        }
-
+        var player = await dbContext.Players.FindAsync([id], cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
         return player;
     }
 
-    public bool Delete(int id)
+    public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken)
     {
-        var player = GetById(id);
-
-        if (player is null)
-        {
-            return false;
-        }
-
-        _players.Remove(player);
+        var player = await dbContext.Players.FindAsync([id], cancellationToken);       dbContext.Players.Remove(player);
+        await dbContext.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

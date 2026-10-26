@@ -18,18 +18,23 @@ private readonly PlayerService _playerService;
 
     [HttpGet]
     [ProducesResponseType<IReadOnlyList<PlayerResponseDto>>(StatusCodes.Status200OK)]
-    public ActionResult<IReadOnlyList<PlayerResponseDto>> GetAll()
+    public async Task<ActionResult<IReadOnlyList<PlayerResponseDto>>> GetAll(
+        CancellationToken cancellationToken)
     {
-        var players = _playerService.GetAll().Select(ToResponse).ToList();
+        var players = (await _playerService.GetAllAsync(cancellationToken))
+            .Select(ToResponse)
+            .ToList();
         return Ok(players);
     }
 
     [HttpGet("{id:int}")]
     [ProducesResponseType<PlayerResponseDto>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult<PlayerResponseDto> GetById(int id)
+    public async Task<ActionResult<PlayerResponseDto>> GetById(
+        int id,
+        CancellationToken cancellationToken)
     {
-        var player = _playerService.GetById(id);
+        var player = await _playerService.GetByIdAsync(id, cancellationToken);
         if (player is null)
         {
             return NotFound();
@@ -41,9 +46,13 @@ private readonly PlayerService _playerService;
     [HttpPost]
     [ProducesResponseType<PlayerResponseDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-    public ActionResult<PlayerResponseDto> Create(CreatePlayerRequestDto player)
+    public async Task<ActionResult<PlayerResponseDto>> Create(
+        CreatePlayerRequestDto player,
+        CancellationToken cancellationToken)
     {
-        var createdPlayer = _playerService.Create(player.Nombre.Trim());
+        var createdPlayer = await _playerService.CreateAsync(
+            player.Nombre.Trim(),
+            cancellationToken);
         var response = ToResponse(createdPlayer);
         return CreatedAtAction(
             nameof(GetById),
@@ -55,7 +64,10 @@ private readonly PlayerService _playerService;
     [ProducesResponseType<PlayerResponseDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult<PlayerResponseDto> Replace(int id, ReplacePlayerRequestDto request)
+    public async Task<ActionResult<PlayerResponseDto>> Replace(
+        int id,
+        ReplacePlayerRequestDto request,
+        CancellationToken cancellationToken)
     {
         if (!request.vida.HasValue)
         {
@@ -71,12 +83,12 @@ private readonly PlayerService _playerService;
             //return BadRequest("El puntaje del jugador es obligatorio.");
         }
 
-        var player = _playerService.Replace(
+        var player = await _playerService.ReplaceAsync(
             id,
             request.Nombre.Trim(),
             request.vida.Value,
-            request.puntaje.Value
-        );
+            request.puntaje.Value,
+            cancellationToken);
 
         if (player is null)
         {
@@ -90,19 +102,22 @@ private readonly PlayerService _playerService;
     [ProducesResponseType<PlayerResponseDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult<PlayerResponseDto> Update(int id, PatchPlayerRequestDto request)
+    public async Task<ActionResult<PlayerResponseDto>> Update(
+        int id,
+        PatchPlayerRequestDto request,
+        CancellationToken cancellationToken)
     {
         if (request.Nombre is null && request.vida is null && request.puntaje is null)
         {
             return BadRequest(new { message = "Debe proporcionar al menos un campo para actualizar." });
         }
 
-        var player = _playerService.Update(
+        var player = await _playerService.UpdateAsync(
             id,
             request.Nombre?.Trim(),
             request.vida,
-            request.puntaje
-        );
+            request.puntaje,
+            cancellationToken);
 
         if (player is null)
         {
@@ -115,9 +130,9 @@ private readonly PlayerService _playerService;
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult Delete(int id)
+    public async Task<ActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var estado = _playerService.Delete(id);
+        var estado = await _playerService.DeleteAsync(id, cancellationToken);
         if (!estado)
         {
             return NotFound();
