@@ -35,6 +35,10 @@ namespace Bomberman.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("nombre");
 
+                    b.Property<int?>("UsuarioId")
+                        .HasColumnType("integer")
+                        .HasColumnName("usuario_id");
+
                     b.Property<double>("puntaje")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("double precision")
@@ -48,6 +52,9 @@ namespace Bomberman.Api.Migrations
                         .HasColumnName("vida");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UsuarioId")
+                        .IsUnique();
 
                     b.ToTable("players", (string)null);
 
@@ -66,6 +73,70 @@ namespace Bomberman.Api.Migrations
                             puntaje = 0.0,
                             vida = 3
                         });
+                });
+
+            modelBuilder.Entity("Bomberman.Api.Models.Usuario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Correo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("correo");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nombre");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("password_hash");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Correo")
+                        .IsUnique();
+
+                    b.ToTable("usuarios", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Correo = "usuario1@example.com",
+                            Nombre = "Usuario 1",
+                            PasswordHash = "hashed_password_1"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Correo = "usuario2@example.com",
+                            Nombre = "Usuario 2",
+                            PasswordHash = "hashed_password_2"
+                        });
+                });
+
+            modelBuilder.Entity("Bomberman.Api.Models.Player", b =>
+                {
+                    b.HasOne("Bomberman.Api.Models.Usuario", "Usuario")
+                        .WithOne("Player")
+                        .HasForeignKey("Bomberman.Api.Models.Player", "UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("Bomberman.Api.Models.Usuario", b =>
+                {
+                    b.Navigation("Player")
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

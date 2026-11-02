@@ -20,6 +20,9 @@ public sealed class PlayerConfiguration : IEntityTypeConfiguration<Player>
             .HasColumnName("nombre")
             .IsRequired();
 
+        builder.Property(player => player.UsuarioId)
+            .HasColumnName("usuario_id");
+
         builder.Property(player => player.vida)
             .HasColumnName("vida")
             .HasDefaultValue(3);

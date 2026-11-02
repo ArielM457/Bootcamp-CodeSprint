@@ -7,6 +7,7 @@ public sealed class BombermanDbContext(DbContextOptions<BombermanDbContext> opti
     : DbContext(options)
 {
     public DbSet<Player> Players => Set<Player>();
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
