@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>Bomberman.Api-2026-11-02</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
