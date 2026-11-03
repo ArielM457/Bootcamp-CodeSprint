@@ -9,8 +9,7 @@ public enum JoinGameRoomStatus
     PlayerNotFound,
     AlreadyJoined,
     RoomFull,
-    RoomNotWaiting,
-    ConcurrentRequest
+    RoomNotWaiting
 }
 
 public sealed record JoinGameRoomResult(

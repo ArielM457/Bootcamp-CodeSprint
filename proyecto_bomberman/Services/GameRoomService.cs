@@ -1,8 +1,6 @@
-using System.Data;
 using Bomberman.Api.Data;
 using Bomberman.Api.Models;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace Bomberman.Api.Services;
 
@@ -67,78 +65,55 @@ public sealed class GameRoomService(BombermanDbContext dbContext)
         int playerId,
         CancellationToken cancellationToken)
     {
-        const int maxAttempts = 3;
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            cancellationToken);
 
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        var room = await dbContext.GameRooms
+            .FromSqlInterpolated(
+                $"SELECT * FROM game_rooms WHERE id = {roomId} FOR UPDATE")
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (room is null)
         {
-            dbContext.ChangeTracker.Clear();
-            await using var transaction = await dbContext.Database.BeginTransactionAsync(
-                IsolationLevel.Serializable,
-                cancellationToken);
-
-            try
-            {
-                var room = await dbContext.GameRooms
-                    .Include(item => item.Participants)
-                        .ThenInclude(item => item.Player)
-                    .FirstOrDefaultAsync(item => item.Id == roomId, cancellationToken);
-
-                if (room is null)
-                {
-                    return new JoinGameRoomResult(JoinGameRoomStatus.RoomNotFound);
-                }
-
-                if (room.Participants.Any(item => item.PlayerId == playerId))
-                {
-                    return new JoinGameRoomResult(JoinGameRoomStatus.AlreadyJoined);
-                }
-
-                if (room.Status != GameRoomStatus.Waiting)
-                {
-                    return new JoinGameRoomResult(JoinGameRoomStatus.RoomNotWaiting);
-                }
-
-                if (room.Participants.Count >= room.MaxPlayers)
-                {
-                    return new JoinGameRoomResult(JoinGameRoomStatus.RoomFull);
-                }
-
-                var player = await dbContext.Players.FindAsync([playerId], cancellationToken);
-                if (player is null)
-                {
-                    return new JoinGameRoomResult(JoinGameRoomStatus.PlayerNotFound);
-                }
-
-                room.Participants.Add(new RoomPlayer
-                {
-                    GameRoomId = room.Id,
-                    PlayerId = player.Id,
-                    Player = player
-                });
-
-                await dbContext.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-                return new JoinGameRoomResult(JoinGameRoomStatus.Success, room);
-            }
-            catch (PostgresException exception)
-                when (exception.SqlState == PostgresErrorCodes.SerializationFailure)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-
-                if (attempt == maxAttempts)
-                {
-                    return new JoinGameRoomResult(JoinGameRoomStatus.ConcurrentRequest);
-                }
-            }
-            catch (DbUpdateException exception)
-                when (exception.InnerException is PostgresException postgresException &&
-                      postgresException.SqlState == PostgresErrorCodes.UniqueViolation)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return new JoinGameRoomResult(JoinGameRoomStatus.AlreadyJoined);
-            }
+            return new JoinGameRoomResult(JoinGameRoomStatus.RoomNotFound);
         }
 
-        return new JoinGameRoomResult(JoinGameRoomStatus.ConcurrentRequest);
+        await dbContext.Entry(room)
+            .Collection(item => item.Participants)
+            .Query()
+            .Include(item => item.Player)
+            .LoadAsync(cancellationToken);
+
+        if (room.Participants.Any(item => item.PlayerId == playerId))
+        {
+            return new JoinGameRoomResult(JoinGameRoomStatus.AlreadyJoined);
+        }
+
+        if (room.Status != GameRoomStatus.Waiting)
+        {
+            return new JoinGameRoomResult(JoinGameRoomStatus.RoomNotWaiting);
+        }
+
+        if (room.Participants.Count >= room.MaxPlayers)
+        {
+            return new JoinGameRoomResult(JoinGameRoomStatus.RoomFull);
+        }
+
+        var player = await dbContext.Players.FindAsync([playerId], cancellationToken);
+        if (player is null)
+        {
+            return new JoinGameRoomResult(JoinGameRoomStatus.PlayerNotFound);
+        }
+
+        room.Participants.Add(new RoomPlayer
+        {
+            GameRoomId = room.Id,
+            PlayerId = player.Id,
+            Player = player
+        });
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new JoinGameRoomResult(JoinGameRoomStatus.Success, room);
     }
 }

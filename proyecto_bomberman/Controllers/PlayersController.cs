@@ -73,14 +73,12 @@ private readonly PlayerService _playerService;
         {
             ModelState.AddModelError(nameof(request.vida), "La vida es obligatoria.");
             return ValidationProblem(ModelState);
-            //return BadRequest("La vida del jugador es obligatoria.");
         }
 
         if (!request.puntaje.HasValue)
         {
             ModelState.AddModelError(nameof(request.puntaje), "El puntaje es obligatorio.");
             return ValidationProblem(ModelState);
-            //return BadRequest("El puntaje del jugador es obligatorio.");
         }
 
         var player = await _playerService.ReplaceAsync(
