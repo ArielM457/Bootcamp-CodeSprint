@@ -21,6 +21,41 @@ namespace Bomberman.Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Bomberman.Api.Models.GameRoom", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("MaxPlayers")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_players");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Waiting")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("game_rooms", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_game_rooms_max_players", "max_players >= 2 AND max_players <= 8");
+                        });
+                });
+
             modelBuilder.Entity("Bomberman.Api.Models.Player", b =>
                 {
                     b.Property<int>("Id")
@@ -75,6 +110,23 @@ namespace Bomberman.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Bomberman.Api.Models.RoomPlayer", b =>
+                {
+                    b.Property<int>("GameRoomId")
+                        .HasColumnType("integer")
+                        .HasColumnName("game_room_id");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("player_id");
+
+                    b.HasKey("GameRoomId", "PlayerId");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("room_players", (string)null);
+                });
+
             modelBuilder.Entity("Bomberman.Api.Models.Usuario", b =>
                 {
                     b.Property<int>("Id")
@@ -105,22 +157,6 @@ namespace Bomberman.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("usuarios", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Correo = "usuario1@example.com",
-                            Nombre = "Usuario 1",
-                            PasswordHash = "hashed_password_1"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Correo = "usuario2@example.com",
-                            Nombre = "Usuario 2",
-                            PasswordHash = "hashed_password_2"
-                        });
                 });
 
             modelBuilder.Entity("Bomberman.Api.Models.Player", b =>
@@ -131,6 +167,35 @@ namespace Bomberman.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("Bomberman.Api.Models.RoomPlayer", b =>
+                {
+                    b.HasOne("Bomberman.Api.Models.GameRoom", "GameRoom")
+                        .WithMany("Participants")
+                        .HasForeignKey("GameRoomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Bomberman.Api.Models.Player", "Player")
+                        .WithMany("Rooms")
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("GameRoom");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("Bomberman.Api.Models.GameRoom", b =>
+                {
+                    b.Navigation("Participants");
+                });
+
+            modelBuilder.Entity("Bomberman.Api.Models.Player", b =>
+                {
+                    b.Navigation("Rooms");
                 });
 
             modelBuilder.Entity("Bomberman.Api.Models.Usuario", b =>

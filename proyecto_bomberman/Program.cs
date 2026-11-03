@@ -20,6 +20,7 @@ builder.Services.AddDbContext<BombermanDbContext>(options =>
 builder.Services.AddScoped<PlayerService>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<GameRoomService>();
 builder.Services.AddSingleton<BombService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

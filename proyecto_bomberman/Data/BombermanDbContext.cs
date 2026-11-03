@@ -8,6 +8,8 @@ public sealed class BombermanDbContext(DbContextOptions<BombermanDbContext> opti
 {
     public DbSet<Player> Players => Set<Player>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<GameRoom> GameRooms => Set<GameRoom>();
+    public DbSet<RoomPlayer> RoomPlayers => Set<RoomPlayer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

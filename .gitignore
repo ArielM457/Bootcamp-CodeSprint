@@ -30,6 +30,7 @@ coverage/
 **/secrets.json
 *.local.json
 *.pfx
+.env
 
 # Logs and caches
 *.log
