@@ -7,7 +7,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtKey = builder.Configuration["Jwt:Key"] ;
 if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
 {
     throw new InvalidOperationException(
@@ -21,6 +21,7 @@ builder.Services.AddScoped<PlayerService>();
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<GameRoomService>();
+builder.Services.AddScoped<GameService>();
 builder.Services.AddSingleton<BombService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
