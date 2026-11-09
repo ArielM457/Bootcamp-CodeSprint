@@ -1,0 +1,409 @@
+{
+  "info": {
+    "_postman_id": "c280c955-e044-4f82-9a80-2b9fc0058dd7",
+    "name": "Bomberman API",
+    "description": "Colección de pruebas para todos los endpoints HTTP de Bomberman.Api y la conexión SignalR. Importa también Bomberman.postman_environment.json y selecciónalo como entorno. Configura la variable token con el JWT de un usuario; las solicitudes protegidas ya usan Bearer {{token}}. Para una prueba completa: registra e inicia sesión, copia AccessToken en token, ejecuta las solicitudes de salas y partidas en orden. El inicio de sesión captura playerId para crear salas. Rooms > Unirse requiere un token de otro usuario que todavía no pertenezca a la sala. El Hub usa negociación SignalR y luego WebSocket; sus métodos JoinGame y MovePlayer se envían como frames JSON SignalR descritos en la solicitud WebSocket.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5271", "type": "string" },
+    { "key": "wsBaseUrl", "value": "ws://localhost:5271", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "correo", "value": "postman.bomberman@example.com", "type": "string" },
+    { "key": "password", "value": "Bomberman123!", "type": "string" },
+    { "key": "nombre", "value": "JugadorPostman", "type": "string" },
+    { "key": "usuarioId", "value": "1", "type": "string" },
+    { "key": "playerId", "value": "1", "type": "string" },
+    { "key": "createdPlayerId", "value": "1", "type": "string" },
+    { "key": "bombId", "value": "1", "type": "string" },
+    { "key": "roomId", "value": "1", "type": "string" },
+    { "key": "gameId", "value": "00000000-0000-0000-0000-000000000000", "type": "string" },
+    { "key": "connectionToken", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "Registrar usuario",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"{{nombre}}\",\n  \"correo\": \"{{correo}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Crea un usuario y su jugador asociado. correo debe ser único; cambia la variable si ya existe."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Usuario registrado (201)', function () { pm.response.to.have.status(201); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesión",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correo}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Inicia sesión con las mismas variables del registro. Copia accessToken en la variable token del entorno para autenticar las siguientes solicitudes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Inicio de sesión correcto (200)', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.usuario && data.usuario.playerId) pm.environment.set('playerId', data.usuario.playerId);",
+                  "  if (data.usuario && data.usuario.id) pm.environment.set('usuarioId', data.usuario.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar usuario autenticado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Usuario autenticado (200)', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Jugadores",
+      "item": [
+        {
+          "name": "Listar jugadores",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/players", "host": ["{{baseUrl}}"], "path": ["api", "players"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Lista de jugadores (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Consultar jugador por ID",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/players/{{playerId}}", "host": ["{{baseUrl}}"], "path": ["api", "players", "{{playerId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Jugador encontrado (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Crear jugador",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"JugadorPostman\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/players", "host": ["{{baseUrl}}"], "path": ["api", "players"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Jugador creado (201)', function () { pm.response.to.have.status(201); });",
+                "const location = pm.response.headers.get('Location');",
+                "const match = location && location.match(/\\/(\\d+)(?:\\?.*)?$/);",
+                "if (match) pm.environment.set('createdPlayerId', match[1]);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Reemplazar jugador",
+          "request": {
+            "method": "PUT",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"JugadorActualizado\",\n  \"vida\": 100,\n  \"puntaje\": 0\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/players/{{createdPlayerId}}", "host": ["{{baseUrl}}"], "path": ["api", "players", "{{createdPlayerId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Jugador reemplazado (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Actualizar parcialmente jugador",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"puntaje\": 10\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/players/{{createdPlayerId}}", "host": ["{{baseUrl}}"], "path": ["api", "players", "{{createdPlayerId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Jugador actualizado (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Eliminar jugador",
+          "request": {
+            "method": "DELETE",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/players/{{createdPlayerId}}", "host": ["{{baseUrl}}"], "path": ["api", "players", "{{createdPlayerId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Jugador eliminado (204)', function () { pm.response.to.have.status(204); });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Usuarios",
+      "item": [
+        {
+          "name": "Listar usuarios",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "header": [], "url": { "raw": "{{baseUrl}}/api/usuarios", "host": ["{{baseUrl}}"], "path": ["api", "usuarios"] } },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Lista de usuarios (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Consultar usuario por ID",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "header": [], "url": { "raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}", "host": ["{{baseUrl}}"], "path": ["api", "usuarios", "{{usuarioId}}"] } },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Usuario encontrado (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Crear usuario",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"{{nombre}}\",\n  \"correo\": \"{{correo}}\",\n  \"password\": \"{{password}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/usuarios", "host": ["{{baseUrl}}"], "path": ["api", "usuarios"] },
+            "description": "Este endpoint crea un usuario independientemente del registro en /api/auth/register; usa un correo nuevo."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Usuario creado (201)', function () { pm.response.to.have.status(201); });",
+                "if (pm.response.code === 201) { const data = pm.response.json(); if (data.id) pm.environment.set('usuarioId', data.id); }"
+              ]
+            }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Bombas",
+      "item": [
+        {
+          "name": "Listar bombas",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "header": [], "url": { "raw": "{{baseUrl}}/api/bombs", "host": ["{{baseUrl}}"], "path": ["api", "bombs"] } },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Lista de bombas (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Consultar bomba por ID",
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "header": [], "url": { "raw": "{{baseUrl}}/api/bombs/{{bombId}}", "host": ["{{baseUrl}}"], "path": ["api", "bombs", "{{bombId}}"] } },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Bomba encontrada (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Crear bomba",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"playerId\": {{playerId}},\n  \"posicionX\": 2,\n  \"posicionY\": 3,\n  \"alcance\": 2\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/bombs", "host": ["{{baseUrl}}"], "path": ["api", "bombs"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Bomba creada (201)', function () { pm.response.to.have.status(201); });",
+                "if (pm.response.code === 201) { const data = pm.response.json(); if (data.id) pm.environment.set('bombId', data.id); }"
+              ]
+            }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Salas (requieren Bearer)",
+      "item": [
+        {
+          "name": "Listar salas disponibles",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/rooms", "host": ["{{baseUrl}}"], "path": ["api", "rooms"] } },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Salas disponibles (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Crear sala",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sala Postman\",\n  \"maxPlayers\": 2\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/rooms", "host": ["{{baseUrl}}"], "path": ["api", "rooms"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Sala creada (201)', function () { pm.response.to.have.status(201); });",
+                "if (pm.response.code === 201) { const data = pm.response.json(); if (data.id) pm.environment.set('roomId', data.id); }"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Consultar sala por ID",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/rooms/{{roomId}}", "host": ["{{baseUrl}}"], "path": ["api", "rooms", "{{roomId}}"] } },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Sala encontrada (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Unirse a sala",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/rooms/{{roomId}}/join", "host": ["{{baseUrl}}"], "path": ["api", "rooms", "{{roomId}}", "join"] },
+            "description": "Para obtener 200, usa el Bearer de un segundo usuario que aún no pertenezca a la sala. El creador ya está inscrito."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Jugador unido a la sala (200)', function () { pm.response.to.have.status(200); });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Partidas (requieren Bearer)",
+      "item": [
+        {
+          "name": "Iniciar partida de sala",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/games/{{roomId}}/start", "host": ["{{baseUrl}}"], "path": ["api", "games", "{{roomId}}", "start"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Partida iniciada (201)', function () { pm.response.to.have.status(201); });",
+                "if (pm.response.code === 201) { const data = pm.response.json(); if (data.id) pm.environment.set('gameId', data.id); }"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Consultar partida por ID",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/games/{{gameId}}", "host": ["{{baseUrl}}"], "path": ["api", "games", "{{gameId}}"] } },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Partida encontrada (200)', function () { pm.response.to.have.status(200); });"] } }]
+        },
+        {
+          "name": "Mover jugador",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"direction\": \"right\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/games/{{gameId}}/move", "host": ["{{baseUrl}}"], "path": ["api", "games", "{{gameId}}", "move"] },
+            "description": "La primera posición es (1,1), así que right es un movimiento válido en el mapa inicial."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Movimiento aplicado (200)', function () { pm.response.to.have.status(200); });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "SignalR",
+      "item": [
+        {
+          "name": "Negociar conexión del Hub",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/hubs/game/negotiate?negotiateVersion=1&access_token={{token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["hubs", "game", "negotiate"],
+              "query": [
+                { "key": "negotiateVersion", "value": "1" },
+                { "key": "access_token", "value": "{{token}}" }
+              ]
+            },
+            "description": "La negociación es el primer paso del transporte SignalR. Guarda connectionToken automáticamente para la solicitud WebSocket."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Negociación SignalR correcta (200)', function () { pm.response.to.have.status(200); });",
+                "if (pm.response.code === 200) { const data = pm.response.json(); if (data.connectionToken) pm.environment.set('connectionToken', data.connectionToken); }"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Conectar al Hub por WebSocket",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{wsBaseUrl}}/hubs/game?id={{connectionToken}}&access_token={{token}}",
+              "protocol": "ws",
+              "host": ["{{wsBaseUrl}}"],
+              "path": ["hubs", "game"],
+              "query": [
+                { "key": "id", "value": "{{connectionToken}}" },
+                { "key": "access_token", "value": "{{token}}" }
+              ]
+            },
+            "description": "Después de ejecutar Negociar conexión, abre el WebSocket y envía el handshake como frame: {\"protocol\":\"json\",\"version\":1}\\u001e. Luego invoca JoinGame con {\"type\":1,\"invocationId\":\"1\",\"target\":\"JoinGame\",\"arguments\":[\"{{gameId}}\"]}\\u001e y MovePlayer con {\"type\":1,\"invocationId\":\"2\",\"target\":\"MovePlayer\",\"arguments\":[\"right\"]}\\u001e. Sustituye el separador \\u001e por el carácter record separator U+001E al enviar cada frame. El Hub emite PlayerConnected, GameStateUpdated, PlayerMoved y PlayerDisconnected."
+          }
+        }
+      ]
+    }
+  ]
+}
