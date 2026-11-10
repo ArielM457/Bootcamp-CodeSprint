@@ -35,7 +35,7 @@ Recibe el JWT y devuelve la sala actual del jugador. Permite que el frontend mue
 
 Recibe `name`, `maxPlayers`, `arenaId` y `mode`. Solo el anfitrión puede modificar una sala que sigue en espera. Devuelve la sala actualizada.
 
-**5.** `POST /api/rooms/{roomId}/bots`
+**5.** `POST /api/rooms/{roomId}/bots` OPCIONAL
 
 No necesita datos del jugador en el cuerpo. Usa el JWT, agrega un Bombot si el jugador es anfitrión y devuelve la sala actualizada.
 
