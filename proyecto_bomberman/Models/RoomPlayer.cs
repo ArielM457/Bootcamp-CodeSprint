@@ -7,4 +7,6 @@ public sealed class RoomPlayer
 
     public int PlayerId { get; set; }
     public Player Player { get; set; } = null!;
+
+    public bool IsReady { get; set; }
 }

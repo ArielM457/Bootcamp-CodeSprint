@@ -36,6 +36,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<GameRoomService>();
 builder.Services.AddScoped<GameService>();
 builder.Services.AddSingleton<BombService>();
+builder.Services.AddSingleton<GameBombScheduler>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

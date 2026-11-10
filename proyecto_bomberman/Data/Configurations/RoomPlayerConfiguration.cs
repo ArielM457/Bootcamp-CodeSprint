@@ -18,6 +18,11 @@ public sealed class RoomPlayerConfiguration : IEntityTypeConfiguration<RoomPlaye
         builder.Property(item => item.PlayerId)
             .HasColumnName("player_id");
 
+        builder.Property(item => item.IsReady)
+            .HasColumnName("is_ready")
+            .HasDefaultValue(false)
+            .IsRequired();
+
         builder.HasOne(item => item.GameRoom)
             .WithMany(room => room.Participants)
             .HasForeignKey(item => item.GameRoomId)

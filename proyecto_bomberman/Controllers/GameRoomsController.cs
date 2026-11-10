@@ -10,7 +10,9 @@ namespace Bomberman.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/rooms")]
-public sealed class GameRoomsController(GameRoomService gameRoomService) : ControllerBase
+public sealed class GameRoomsController(
+    GameRoomService gameRoomService,
+    GameService gameService) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType<GameRoomResponseDto>(StatusCodes.Status201Created)]
@@ -97,25 +99,102 @@ public sealed class GameRoomsController(GameRoomService gameRoomService) : Contr
         };
     }
 
+    [HttpPost("join")]
+    [ProducesResponseType<GameRoomResponseDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<GameRoomResponseDto>> JoinByCode(
+        JoinGameRoomByCodeRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetPlayerId(out var playerId))
+        {
+            return Unauthorized(new { message = "El token no contiene un jugador válido." });
+        }
+
+        var result = await gameRoomService.JoinByCodeAsync(
+            request.Code,
+            playerId,
+            cancellationToken);
+
+        return result.Status switch
+        {
+            JoinGameRoomStatus.Success => Ok(ToResponse(result.Room!)),
+            JoinGameRoomStatus.RoomNotFound => NotFound(
+                new { message = "No existe una sala con ese código." }),
+            JoinGameRoomStatus.PlayerNotFound => Unauthorized(
+                new { message = "El jugador del token ya no existe." }),
+            JoinGameRoomStatus.AlreadyJoined => Conflict(
+                new { message = "El jugador ya pertenece a esta sala." }),
+            JoinGameRoomStatus.RoomFull => Conflict(new { message = "La sala está llena." }),
+            JoinGameRoomStatus.RoomNotWaiting => Conflict(
+                new { message = "La sala ya no está esperando jugadores." }),
+            _ => Conflict(new { message = "No se pudo completar la unión. Intente nuevamente." })
+        };
+    }
+
+    [HttpPut("{id:int}/ready")]
+    [ProducesResponseType<GameRoomResponseDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<GameRoomResponseDto>> SetReady(
+        int id,
+        SetRoomReadyRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetPlayerId(out var playerId))
+        {
+            return Unauthorized(new { message = "El token no contiene un jugador válido." });
+        }
+
+        var result = await gameRoomService.SetReadyAsync(
+            id,
+            playerId,
+            request.IsReady,
+            cancellationToken);
+
+        return result.Status switch
+        {
+            SetRoomReadyStatus.Success => Ok(ToResponse(result.Room!)),
+            SetRoomReadyStatus.RoomNotFound => NotFound(new { message = "La sala no existe." }),
+            SetRoomReadyStatus.PlayerNotInRoom => StatusCode(
+                StatusCodes.Status403Forbidden,
+                new { message = "El jugador no pertenece a esta sala." }),
+            SetRoomReadyStatus.HostCannotChangeReady => Conflict(
+                new { message = "El creador inicia la partida y no cambia su estado listo." }),
+            SetRoomReadyStatus.RoomNotWaiting => Conflict(
+                new { message = "La sala ya no está esperando jugadores." }),
+            _ => Conflict(new { message = "No se pudo cambiar el estado listo." })
+        };
+    }
+
     private bool TryGetPlayerId(out int playerId)
     {
         return int.TryParse(User.FindFirstValue("player_id"), out playerId);
     }
 
-    private static GameRoomResponseDto ToResponse(GameRoom room)
+    private GameRoomResponseDto ToResponse(GameRoom room)
     {
         return new GameRoomResponseDto
         {
             Id = room.Id,
+            Code = room.Code,
+            HostPlayerId = room.HostPlayerId,
             Name = room.Name,
             MaxPlayers = room.MaxPlayers,
             Status = room.Status.ToString().ToLowerInvariant(),
+            GameId = gameService.GetByRoomId(room.Id)?.Id,
             Participants = room.Participants
                 .OrderBy(item => item.PlayerId)
                 .Select(item => new RoomPlayerResponseDto
                 {
                     PlayerId = item.PlayerId,
-                    Name = item.Player.Nombre
+                    Name = item.Player.Nombre,
+                    IsReady = item.IsReady
                 })
                 .ToList()
         };

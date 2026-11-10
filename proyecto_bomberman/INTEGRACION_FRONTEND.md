@@ -19,11 +19,11 @@ Endpoints principales disponibles:
 
 ## **Endpoints que faltan**
 
-**1.** `GET /api/players/me`
+**1.** `GET /api/players/me` OPCIONAL
 
 Recibe el JWT y devuelve el perfil del jugador autenticado con `id`, `displayName`, `fullName`, `nickname` y `avatarId`.
 
-**2.** `PATCH /api/players/me`
+**2.** `PATCH /api/players/me`OPCIONAL
 
 Recibe `fullName`, `nickname` y `avatarId`. Debe actualizar y devolver el perfil sin recibir el `playerId`, porque sale del JWT.
 
@@ -39,7 +39,7 @@ Recibe `name`, `maxPlayers`, `arenaId` y `mode`. Solo el anfitrión puede modifi
 
 No necesita datos del jugador en el cuerpo. Usa el JWT, agrega un Bombot si el jugador es anfitrión y devuelve la sala actualizada.
 
-**6.** `DELETE /api/rooms/{roomId}/participants/me`
+**6.** `DELETE /api/rooms/{roomId}/participants/me` OPCIONAL
 
 Usa el JWT para retirar al jugador. Si sale el anfitrión, el backend debe asignar otro jugador humano. Si no quedan jugadores humanos, debe eliminar la sala.
 

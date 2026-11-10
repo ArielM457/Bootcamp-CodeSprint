@@ -30,6 +30,16 @@ namespace Bomberman.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("code");
+
+                    b.Property<int>("HostPlayerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("host_player_id");
+
                     b.Property<int>("MaxPlayers")
                         .HasColumnType("integer")
                         .HasColumnName("max_players");
@@ -49,6 +59,11 @@ namespace Bomberman.Api.Migrations
                         .HasColumnName("status");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("HostPlayerId");
 
                     b.ToTable("game_rooms", null, t =>
                         {
@@ -120,6 +135,12 @@ namespace Bomberman.Api.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("player_id");
 
+                    b.Property<bool>("IsReady")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_ready");
+
                     b.HasKey("GameRoomId", "PlayerId");
 
                     b.HasIndex("PlayerId");
@@ -157,6 +178,15 @@ namespace Bomberman.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("usuarios", (string)null);
+                });
+
+            modelBuilder.Entity("Bomberman.Api.Models.GameRoom", b =>
+                {
+                    b.HasOne("Bomberman.Api.Models.Player", null)
+                        .WithMany()
+                        .HasForeignKey("HostPlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Bomberman.Api.Models.Player", b =>

@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace Bomberman.Api.Hubs;
 
 [Authorize]
-public sealed class GameHub(GameService gameService) : Hub
+public sealed class GameHub(GameService gameService, GameBombScheduler bombScheduler) : Hub
 {
     private const string GameIdItem = "GameId";
     private const string RoomIdItem = "RoomId";
@@ -37,7 +37,7 @@ public sealed class GameHub(GameService gameService) : Hub
         }
 
         var groupName = GetGroupName(game.RoomId);
-        var gameState = ToResponse(game);
+        var gameState = GameSessionMapper.ToResponse(game);
 
         Context.Items[GameIdItem] = game.Id;
         Context.Items[RoomIdItem] = game.RoomId;
@@ -48,7 +48,7 @@ public sealed class GameHub(GameService gameService) : Hub
         await Clients.Caller.SendAsync("GameStateUpdated", gameState);
     }
 
-    public async Task MovePlayer(string direction)
+    public async Task MovePlayer(string direction, string commandId)
     {
         var playerId = GetPlayerId();
 
@@ -63,12 +63,16 @@ public sealed class GameHub(GameService gameService) : Hub
         var result = gameService.Move(gameId, playerId, direction);
         if (result.Status != MovePlayerStatus.Success)
         {
-            throw new HubException(GetMoveErrorMessage(result.Status));
+            await Clients.Caller.SendAsync(
+                "CommandRejected",
+                commandId,
+                GetMoveErrorMessage(result.Status));
+            return;
         }
 
         var game = result.Game!;
         var player = game.Players.First(item => item.PlayerId == playerId);
-        var gameState = ToResponse(game);
+        var gameState = GameSessionMapper.ToResponse(game);
         var groupName = GetGroupName(roomId);
 
         await Clients.Group(groupName).SendAsync(
@@ -77,6 +81,33 @@ public sealed class GameHub(GameService gameService) : Hub
             player.X,
             player.Y);
         await Clients.Group(groupName).SendAsync("GameStateUpdated", gameState);
+    }
+
+    public async Task PlaceBomb(string commandId)
+    {
+        var playerId = GetPlayerId();
+        if (!Context.Items.TryGetValue(GameIdItem, out var gameIdValue) ||
+            gameIdValue is not Guid gameId ||
+            !Context.Items.TryGetValue(RoomIdItem, out var roomIdValue) ||
+            roomIdValue is not int roomId)
+        {
+            throw new HubException("Primero debes conectarte a una partida.");
+        }
+
+        var result = gameService.PlaceBomb(gameId, playerId);
+        if (result.Status != PlaceBombStatus.Success)
+        {
+            await Clients.Caller.SendAsync(
+                "CommandRejected",
+                commandId,
+                GetBombErrorMessage(result.Status));
+            return;
+        }
+
+        bombScheduler.Schedule(gameId, roomId, result.Bomb!.Id, result.Bomb.ExplodesAtUtc);
+        await Clients.Group(GetGroupName(roomId)).SendAsync(
+            "GameStateUpdated",
+            GameSessionMapper.ToResponse(result.Game!));
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
@@ -119,29 +150,24 @@ public sealed class GameHub(GameService gameService) : Hub
             MovePlayerStatus.InvalidDirection => "La dirección debe ser up, down, left o right.",
             MovePlayerStatus.OutsideMap => "El jugador no puede salir del mapa.",
             MovePlayerStatus.WallBlocked => "Una pared bloquea el movimiento.",
+            MovePlayerStatus.BombBlocked => "Una bomba bloquea el movimiento.",
+            MovePlayerStatus.MoveTooSoon => "Espera un momento antes de volver a moverte.",
+            MovePlayerStatus.PlayerEliminated => "El jugador está eliminado.",
             _ => "No se pudo procesar el movimiento."
         };
     }
 
-    private static GameSessionResponseDto ToResponse(GameSession game)
+    private static string GetBombErrorMessage(PlaceBombStatus status)
     {
-        return new GameSessionResponseDto
+        return status switch
         {
-            Id = game.Id,
-            RoomId = game.RoomId,
-            Status = game.Status.ToString().ToLowerInvariant(),
-            Map = game.Map.Cells
-                .Select(row => row.Select(cell => (int)cell).ToArray())
-                .ToArray(),
-            Players = game.Players
-                .OrderBy(player => player.PlayerId)
-                .Select(player => new PlayerPositionResponseDto
-                {
-                    PlayerId = player.PlayerId,
-                    X = player.X,
-                    Y = player.Y
-                })
-                .ToList()
+            PlaceBombStatus.GameNotFound => "La partida no existe.",
+            PlaceBombStatus.PlayerNotInGame => "El jugador no pertenece a esta partida.",
+            PlaceBombStatus.PlayerEliminated => "El jugador está eliminado.",
+            PlaceBombStatus.GameFinished => "La partida ya terminó.",
+            PlaceBombStatus.PlayerAlreadyHasBomb => "Ya tienes una bomba activa.",
+            PlaceBombStatus.CellAlreadyHasBomb => "Ya existe una bomba en esta casilla.",
+            _ => "No se pudo colocar la bomba."
         };
     }
 }

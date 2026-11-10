@@ -35,12 +35,19 @@ public sealed class GamesController(GameService gameService) : ControllerBase
             StartGameStatus.Success => CreatedAtAction(
                 nameof(GetById),
                 new { gameId = result.Game!.Id },
-                ToResponse(result.Game)),
+                GameSessionMapper.ToResponse(result.Game)),
             StartGameStatus.RoomNotFound => NotFound(
                 new { message = "La sala no existe." }),
             StartGameStatus.PlayerNotInRoom => StatusCode(
                 StatusCodes.Status403Forbidden,
                 new { message = "El jugador no pertenece a esta sala." }),
+            StartGameStatus.PlayerNotHost => StatusCode(
+                StatusCodes.Status403Forbidden,
+                new { message = "Solo el creador puede iniciar la partida." }),
+            StartGameStatus.NotEnoughPlayers => Conflict(
+                new { message = "Se necesitan al menos 2 jugadores para iniciar." }),
+            StartGameStatus.PlayersNotReady => Conflict(
+                new { message = "Todos los demás jugadores deben estar listos." }),
             StartGameStatus.RoomNotWaiting => Conflict(
                 new { message = "La sala ya inició o terminó su partida." }),
             _ => Conflict(new { message = "No se pudo iniciar la partida." })
@@ -72,7 +79,7 @@ public sealed class GamesController(GameService gameService) : ControllerBase
                 new { message = "El jugador no pertenece a esta partida." });
         }
 
-        return Ok(ToResponse(game));
+        return Ok(GameSessionMapper.ToResponse(game));
     }
 
     [HttpPost("{gameId:guid}/move")]
@@ -95,7 +102,7 @@ public sealed class GamesController(GameService gameService) : ControllerBase
 
         return result.Status switch
         {
-            MovePlayerStatus.Success => Ok(ToResponse(result.Game!)),
+            MovePlayerStatus.Success => Ok(GameSessionMapper.ToResponse(result.Game!)),
             MovePlayerStatus.GameNotFound => NotFound(
                 new { message = "La partida no existe." }),
             MovePlayerStatus.PlayerNotInGame => StatusCode(
@@ -109,6 +116,12 @@ public sealed class GamesController(GameService gameService) : ControllerBase
                 new { message = "El jugador no puede salir del mapa." }),
             MovePlayerStatus.WallBlocked => Conflict(
                 new { message = "Una pared bloquea el movimiento." }),
+            MovePlayerStatus.BombBlocked => Conflict(
+                new { message = "Una bomba bloquea el movimiento." }),
+            MovePlayerStatus.MoveTooSoon => Conflict(
+                new { message = "Espera un momento antes de volver a moverte." }),
+            MovePlayerStatus.PlayerEliminated => Conflict(
+                new { message = "El jugador está eliminado." }),
             _ => Conflict(new { message = "No se pudo procesar el movimiento." })
         };
     }
@@ -118,25 +131,4 @@ public sealed class GamesController(GameService gameService) : ControllerBase
         return int.TryParse(User.FindFirstValue("player_id"), out playerId);
     }
 
-    private static GameSessionResponseDto ToResponse(GameSession game)
-    {
-        return new GameSessionResponseDto
-        {
-            Id = game.Id,
-            RoomId = game.RoomId,
-            Status = game.Status.ToString().ToLowerInvariant(),
-            Map = game.Map.Cells
-                .Select(row => row.Select(cell => (int)cell).ToArray())
-                .ToArray(),
-            Players = game.Players
-                .OrderBy(player => player.PlayerId)
-                .Select(player => new PlayerPositionResponseDto
-                {
-                    PlayerId = player.PlayerId,
-                    X = player.X,
-                    Y = player.Y
-                })
-                .ToList()
-        };
-    }
 }

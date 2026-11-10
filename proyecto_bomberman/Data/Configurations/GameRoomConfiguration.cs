@@ -19,6 +19,23 @@ public sealed class GameRoomConfiguration : IEntityTypeConfiguration<GameRoom>
             .HasColumnName("id")
             .ValueGeneratedOnAdd();
 
+        builder.Property(room => room.Code)
+            .HasColumnName("code")
+            .HasMaxLength(8)
+            .IsRequired();
+
+        builder.HasIndex(room => room.Code)
+            .IsUnique();
+
+        builder.Property(room => room.HostPlayerId)
+            .HasColumnName("host_player_id")
+            .IsRequired();
+
+        builder.HasOne<Player>()
+            .WithMany()
+            .HasForeignKey(room => room.HostPlayerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(room => room.Name)
             .HasColumnName("name")
             .HasMaxLength(60)

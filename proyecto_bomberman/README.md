@@ -115,7 +115,7 @@ La conexión necesita un JWT válido. El Hub obtiene el jugador desde el claim `
 ### **Métodos del Hub**
 
 - `JoinGame(gameId)`: conecta al jugador con una partida y lo agrega al grupo de su sala.
-- `MovePlayer(direction)`: solicita un movimiento. Las direcciones válidas son `up`, `down`, `left` y `right`.
+- `MovePlayer(direction, commandId)`: solicita un movimiento. Las direcciones válidas son `up`, `down`, `left` y `right`.
 
 El cliente debe ejecutar `JoinGame` antes de solicitar un movimiento. Cada conexión puede participar en una sola partida.
 
@@ -180,9 +180,9 @@ connection.on('GameStateUpdated', (gameState) => {
 
 await connection.start();
 await connection.invoke('JoinGame', gameId);
-await connection.invoke('MovePlayer', 'right');
+await connection.invoke('MovePlayer', 'right', crypto.randomUUID());
 ```
 
-El servidor llama a `GameService.Move` para validar cada movimiento. Si el movimiento no es válido, la llamada `MovePlayer` devuelve un error y no se envían `PlayerMoved` ni `GameStateUpdated`.
+El servidor llama a `GameService.Move` para validar cada movimiento. Si el movimiento no es válido, envía `CommandRejected(commandId, message)` al cliente y no publica `PlayerMoved` ni `GameStateUpdated`.
 
 Los eventos se envían al grupo `room-{roomId}`. Los jugadores conectados a otras salas no reciben esas actualizaciones.
